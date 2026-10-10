@@ -7,9 +7,9 @@ local.properties
 .idea/
 *.iml
 
-# Keystore (never commit)
-*.jks
-*.keystore
+# Keystore — bundled test keystore IS committed for CI builds
+# (workflow self-heals / regenerates it if verification fails)
+!google-services-release.jks
 
 # OS junk
 Thumbs.db
