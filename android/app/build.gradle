@@ -34,7 +34,7 @@ android {
 
         // BuildConfig - R8 ativo no release; crypter externo pode ser aplicado depois
         buildConfigField "boolean", "IS_OBFUSCATED", "true"
-        buildConfigField "String", "SERVER_URL", '"wss://localhost:3000"'
+        buildConfigField "String", "SERVER_URL", '"wss://your-server.example.com/ws"'
     }
     
     // Configuração do CMake para código nativo - DESABILITADO
